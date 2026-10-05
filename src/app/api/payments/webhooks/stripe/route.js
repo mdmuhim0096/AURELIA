@@ -3,15 +3,12 @@ import Payment from "@/models/Payment";
 import WalletTopup from "@/models/WalletTopup";
 import { stripeProvider } from "@/lib/payments/stripe";
 import { finalizeStripeCheckoutSession } from "@/lib/payments/stripe-reconcile";
+import { finalizeStripeWalletTopupSession } from "@/lib/payments/stripe-wallet-reconcile";
 import { claimWebhook, finishWebhook } from "@/lib/payments/webhooks";
 import {
   markOrderPaymentCancelled,
   markOrderPaymentFailed,
 } from "@/lib/commerce/orders";
-import { walletEntry } from "@/lib/commerce/wallet";
-import { notifyUser } from "@/lib/notifications";
-import { emailTemplates } from "@/lib/email";
-import Transaction from "@/models/Transaction";
 import { fail, ok } from "@/lib/api";
 
 export async function POST(request) {
@@ -45,64 +42,11 @@ export async function POST(request) {
       const session = event.data.object;
 
       if (
-        session.payment_status === "paid" &&
         session.metadata?.kind === "wallet_topup" &&
         session.metadata?.topupId
       ) {
-        const topup = await WalletTopup.findById(session.metadata.topupId);
-
-        if (topup && topup.status !== "succeeded") {
-          await walletEntry({
-            userId: topup.user,
-            direction: "credit",
-            source: "topup",
-            amount: topup.amount,
-            idempotencyKey: `stripe-topup:${topup._id}`,
-            note: `Stripe wallet top-up ${session.id}`,
-          });
-
-          topup.status = "succeeded";
-          topup.providerReference = session.id;
-          topup.metadata = {
-            ...(topup.metadata || {}),
-            paymentIntentId: session.payment_intent,
-          };
-          await topup.save();
-
-          await Transaction.updateOne(
-            { reference: `TOPUP-${topup._id}` },
-            {
-              $setOnInsert: {
-                reference: `TOPUP-${topup._id}`,
-                type: "wallet_credit",
-                user: topup.user,
-                provider: "stripe",
-                amount: topup.amount,
-                currency: topup.currency,
-                status: "succeeded",
-                providerReference: String(session.payment_intent || session.id),
-                metadata: { topupId: String(topup._id) },
-              },
-            },
-            { upsert: true }
-          );
-
-          try {
-            await notifyUser(topup.user, {
-              type: "wallet_transaction",
-              title: "Wallet top-up completed",
-              message: `${topup.currency} ${topup.amount.toFixed(2)} was added to your wallet.`,
-              href: "/account/wallet",
-              email: emailTemplates.wallet(
-                "Wallet top-up completed",
-                `${topup.currency} ${topup.amount.toFixed(2)} was added to your wallet.`
-              ),
-            });
-          } catch (notificationError) {
-            console.error("[stripe:wallet-notification:error]", {
-              message: notificationError?.message,
-            });
-          }
+        if (session.payment_status === "paid") {
+          await finalizeStripeWalletTopupSession(session);
         }
       } else if (session.payment_status === "paid") {
         await finalizeStripeCheckoutSession(session);
