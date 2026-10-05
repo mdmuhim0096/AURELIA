@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-const appUrl = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+import { getAppUrl } from "@/lib/app-url";
 function client() {
   if (!process.env.STRIPE_SECRET_KEY) throw Object.assign(new Error("Stripe is not configured"), { status: 503 });
   return new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -14,8 +14,8 @@ export const stripeProvider = {
       client_reference_id: order.orderNumber,
       customer_email: order.user ? undefined : order.guestEmail || undefined,
       line_items: [{ price_data: { currency: order.currency.toLowerCase(), product_data: { name: `Order ${order.orderNumber}` }, unit_amount: Math.round(order.total * 100) }, quantity: 1 }],
-      success_url: `${appUrl()}/checkout/success?order=${order.orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl()}/checkout?cancelled=1&order=${order.orderNumber}`,
+      success_url: `${getAppUrl()}/checkout/success?order=${order.orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${getAppUrl()}/checkout?cancelled=1&order=${order.orderNumber}`,
       metadata: { orderId: String(order._id), paymentId: String(payment._id) },
       payment_intent_data: { metadata: { orderId: String(order._id), paymentId: String(payment._id) } }
     }, { idempotencyKey: payment.idempotencyKey });

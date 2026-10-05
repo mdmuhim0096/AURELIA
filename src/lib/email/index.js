@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 // const FROM = process.env.EMAIL_FROM || "Aurelia Commerce <noreply@example.com>";
 // const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -62,9 +63,7 @@ const FROM =
   process.env.EMAIL_FROM ||
   "Aurelia Commerce <noreply@example.com>";
 
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "http://localhost:3000";
+const APP_URL = getAppUrl();
 
 function wrap(title, body) {
   return `<!doctype html>
