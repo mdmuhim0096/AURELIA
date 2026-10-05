@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 import Box from "@mui/material/Box";
@@ -31,6 +32,7 @@ import Category from "@/models/Category";
 import SiteSetting from "@/models/SiteSetting";
 
 export const revalidate = 60;
+
 
 
 /* --------------------------------------------------

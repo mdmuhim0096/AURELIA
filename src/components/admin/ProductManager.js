@@ -14,6 +14,21 @@ import Loading from "@/components/ui/Loading";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/providers/ToastProvider";
 
+
+import {
+    Autocomplete,
+    Box,
+    Card,
+    CardContent,
+    Checkbox,
+    CircularProgress,
+    Divider,
+    FormControlLabel,
+    MenuItem,
+    Stack,
+    Typography,
+} from "@mui/material";
+
 export function ProductList() {
     const [items, setItems] = useState(null);
     const [deleteId, setDeleteId] = useState(null);
@@ -340,25 +355,155 @@ const base = {
     },
 };
 
-export function ProductEditor({
-    id,
-}) {
-    const [form, setForm] =
-        useState(base);
+export function ProductEditor({ id }) {
+    function normalizeId(value) {
+        if (!value) return "";
 
+        if (typeof value === "object") {
+            return String(
+                value._id ||
+                value.id ||
+                ""
+            );
+        }
 
+        return String(value);
+    }
 
-    const [meta, setMeta] =
-        useState({
-            categories: [],
-            brands: [],
-        });
+    function safeArray(value) {
+        return Array.isArray(value)
+            ? value
+            : [];
+    }
+
+    function safeObject(value) {
+        return value &&
+            typeof value === "object" &&
+            !Array.isArray(value)
+            ? value
+            : {};
+    }
+
+    function safeJson(value, fallback) {
+        try {
+            return JSON.stringify(
+                value ?? fallback,
+                null,
+                2
+            );
+        } catch {
+            return JSON.stringify(
+                fallback,
+                null,
+                2
+            );
+        }
+    }
+
+    function optionalNumber(value) {
+        if (
+            value === "" ||
+            value === null ||
+            value === undefined
+        ) {
+            return null;
+        }
+
+        const number = Number(value);
+
+        return Number.isFinite(number)
+            ? number
+            : null;
+    }
+
+    const [form, setForm] = useState(() => ({
+        ...base,
+
+        brand: normalizeId(base.brand),
+
+        categories: safeArray(
+            base.categories
+        )
+            .map(normalizeId)
+            .filter(Boolean),
+
+        tags: Array.isArray(base.tags)
+            ? base.tags.join(", ")
+            : base.tags || "",
+
+        media: safeArray(base.media),
+
+        specifications: safeArray(
+            base.specifications
+        ),
+
+        attributes: safeObject(
+            base.attributes
+        ),
+
+        relatedProducts: safeArray(
+            base.relatedProducts
+        )
+            .map(normalizeId)
+            .filter(Boolean),
+
+        variants: safeArray(
+            base.variants
+        ),
+
+        shipping: safeObject(
+            base.shipping
+        ),
+
+        seo: safeObject(
+            base.seo
+        ),
+    }));
+
+    const [meta, setMeta] = useState({
+        categories: [],
+        brands: [],
+    });
 
     const [loading, setLoading] =
         useState(Boolean(id));
 
     const [saving, setSaving] =
         useState(false);
+
+    const [uploading, setUploading] =
+        useState(false);
+
+    const [jsonDrafts, setJsonDrafts] =
+        useState(() => ({
+            specifications: safeJson(
+                base.specifications,
+                []
+            ),
+
+            attributes: safeJson(
+                base.attributes,
+                {}
+            ),
+
+            relatedProducts: safeJson(
+                base.relatedProducts,
+                []
+            ),
+
+            variants: safeJson(
+                base.variants,
+                []
+            ),
+        }));
+
+    const [jsonErrors, setJsonErrors] =
+        useState({
+            specifications: "",
+            attributes: "",
+            relatedProducts: "",
+            variants: "",
+        });
 
     const { toast } = useToast();
 
@@ -372,10 +517,17 @@ export function ProductEditor({
                     brandsResponse,
                 ] = await Promise.all([
                     fetch(
-                        "/api/admin/categories"
+                        "/api/admin/categories",
+                        {
+                            cache: "no-store",
+                        }
                     ),
+
                     fetch(
-                        "/api/admin/brands"
+                        "/api/admin/brands",
+                        {
+                            cache: "no-store",
+                        }
                     ),
                 ]);
 
@@ -387,16 +539,39 @@ export function ProductEditor({
                     brandsResponse.json(),
                 ]);
 
+                if (
+                    !categoriesResponse.ok
+                ) {
+                    throw new Error(
+                        categoriesData?.error ||
+                        categoriesData?.message ||
+                        "Unable to load categories"
+                    );
+                }
+
+                if (!brandsResponse.ok) {
+                    throw new Error(
+                        brandsData?.error ||
+                        brandsData?.message ||
+                        "Unable to load brands"
+                    );
+                }
+
                 if (cancelled) {
                     return;
                 }
 
-                setMeta({
-                    categories:
-                        categoriesData.items || [],
-                    brands:
-                        brandsData.items || [],
-                });
+                const nextMeta = {
+                    categories: safeArray(
+                        categoriesData.items
+                    ),
+
+                    brands: safeArray(
+                        brandsData.items
+                    ),
+                };
+
+                setMeta(nextMeta);
 
                 if (!id) {
                     setLoading(false);
@@ -405,7 +580,10 @@ export function ProductEditor({
 
                 const productResponse =
                     await fetch(
-                        `/api/admin/products/${id}`
+                        `/api/admin/products/${id}`,
+                        {
+                            cache: "no-store",
+                        }
                     );
 
                 const productData =
@@ -415,9 +593,7 @@ export function ProductEditor({
                     return;
                 }
 
-                if (
-                    !productResponse.ok
-                ) {
+                if (!productResponse.ok) {
                     throw new Error(
                         productData?.error ||
                         productData?.message ||
@@ -425,38 +601,125 @@ export function ProductEditor({
                     );
                 }
 
-                if (productData.product) {
-                    setForm({
+                if (
+                    productData.product
+                ) {
+                    const product =
+                        productData.product;
+
+                    const nextForm = {
                         ...base,
-                        ...productData.product,
+                        ...product,
 
                         brand:
-                            productData.product.brand
-                                ? String(
-                                    productData.product
-                                        .brand
+                            normalizeId(
+                                product.brand
+                            ),
+
+                        categories:
+                            safeArray(
+                                product.categories
+                            )
+                                .map(
+                                    normalizeId
                                 )
-                                : "",
+                                .filter(Boolean),
 
-                        categories: (
-                            productData.product
-                                .categories || []
-                        ).map(String),
+                        tags:
+                            Array.isArray(
+                                product.tags
+                            )
+                                ? product.tags.join(
+                                    ", "
+                                )
+                                : product.tags ||
+                                "",
 
-                        tags: (
-                            productData.product
-                                .tags || []
-                        ).join(", "),
+                        media:
+                            safeArray(
+                                product.media
+                            ),
+
+                        specifications:
+                            safeArray(
+                                product.specifications
+                            ),
+
+                        attributes:
+                            safeObject(
+                                product.attributes
+                            ),
+
+                        relatedProducts:
+                            safeArray(
+                                product.relatedProducts
+                            )
+                                .map(
+                                    normalizeId
+                                )
+                                .filter(Boolean),
 
                         variants:
-                            productData.variants ||
-                            [],
+                            safeArray(
+                                productData.variants ||
+                                product.variants
+                            ),
+
+                        shipping:
+                            safeObject(
+                                product.shipping
+                            ),
+
+                        seo:
+                            safeObject(
+                                product.seo
+                            ),
+                    };
+
+                    setForm(nextForm);
+
+                    setJsonDrafts({
+                        specifications:
+                            safeJson(
+                                nextForm.specifications,
+                                []
+                            ),
+
+                        attributes:
+                            safeJson(
+                                nextForm.attributes,
+                                {}
+                            ),
+
+                        relatedProducts:
+                            safeJson(
+                                nextForm.relatedProducts,
+                                []
+                            ),
+
+                        variants:
+                            safeJson(
+                                nextForm.variants,
+                                []
+                            ),
+                    });
+
+                    setJsonErrors({
+                        specifications: "",
+                        attributes: "",
+                        relatedProducts: "",
+                        variants: "",
                     });
                 }
             } catch (error) {
                 if (cancelled) {
                     return;
                 }
+
+                console.error(
+                    "Product editor load error:",
+                    error
+                );
 
                 toast(
                     error?.message ||
@@ -484,6 +747,100 @@ export function ProductEditor({
         }));
     }
 
+    function setShipping(
+        key,
+        value
+    ) {
+        setForm((current) => ({
+            ...current,
+
+            shipping: {
+                ...safeObject(
+                    current.shipping
+                ),
+
+                [key]: value,
+            },
+        }));
+    }
+
+    function setSeo(key, value) {
+        setForm((current) => ({
+            ...current,
+
+            seo: {
+                ...safeObject(
+                    current.seo
+                ),
+
+                [key]: value,
+            },
+        }));
+    }
+
+    function updateJsonField(
+        key,
+        text
+    ) {
+        setJsonDrafts(
+            (current) => ({
+                ...current,
+                [key]: text,
+            })
+        );
+
+        try {
+            const parsed =
+                JSON.parse(text);
+
+            if (
+                [
+                    "specifications",
+                    "relatedProducts",
+                    "variants",
+                ].includes(key) &&
+                !Array.isArray(parsed)
+            ) {
+                throw new Error(
+                    "This field must contain a JSON array."
+                );
+            }
+
+            if (
+                key === "attributes" &&
+                (
+                    !parsed ||
+                    typeof parsed !==
+                    "object" ||
+                    Array.isArray(parsed)
+                )
+            ) {
+                throw new Error(
+                    "Attributes must contain a JSON object."
+                );
+            }
+
+            set(key, parsed);
+
+            setJsonErrors(
+                (current) => ({
+                    ...current,
+                    [key]: "",
+                })
+            );
+        } catch (error) {
+            setJsonErrors(
+                (current) => ({
+                    ...current,
+
+                    [key]:
+                        error?.message ||
+                        "Invalid JSON",
+                })
+            );
+        }
+    }
+
     async function upload(event) {
         const file =
             event.target.files?.[0];
@@ -492,20 +849,26 @@ export function ProductEditor({
             return;
         }
 
+        setUploading(true);
+
         try {
             const signatureResponse =
                 await fetch(
                     "/api/media/signature",
                     {
                         method: "POST",
+
                         headers: {
                             "Content-Type":
                                 "application/json",
                         },
-                        body: JSON.stringify({
-                            folder:
-                                "commerce/products",
-                        }),
+
+                        body: JSON.stringify(
+                            {
+                                folder:
+                                    "commerce/products",
+                            }
+                        ),
                     }
                 );
 
@@ -571,41 +934,76 @@ export function ProductEditor({
                 );
             }
 
-            set("media", [
-                ...form.media,
-                {
-                    type:
-                        uploadData.resource_type ===
-                            "video"
-                            ? "video"
-                            : "image",
+            const newMedia = {
+                type:
+                    uploadData.resource_type ===
+                        "video"
+                        ? "video"
+                        : "image",
 
-                    url:
-                        uploadData.secure_url,
+                url:
+                    uploadData.secure_url,
 
-                    alt:
-                        form.name,
+                alt:
+                    form.name || "",
 
-                    publicId:
-                        uploadData.public_id,
-                },
-            ]);
+                publicId:
+                    uploadData.public_id,
+            };
+
+            setForm((current) => ({
+                ...current,
+
+                media: [
+                    ...safeArray(
+                        current.media
+                    ),
+
+                    newMedia,
+                ],
+            }));
 
             toast(
                 "Media uploaded",
                 "success"
             );
+
+            event.target.value = "";
         } catch (error) {
+            console.error(
+                "Media upload error:",
+                error
+            );
+
             toast(
                 error?.message ||
                 "Upload failed",
                 "error"
             );
+        } finally {
+            setUploading(false);
         }
     }
 
     async function save(event) {
         event.preventDefault();
+
+        const invalidJson =
+            Object.entries(
+                jsonErrors
+            ).find(
+                ([, message]) =>
+                    Boolean(message)
+            );
+
+        if (invalidJson) {
+            toast(
+                `Fix invalid JSON in ${invalidJson[0]} before saving.`,
+                "error"
+            );
+
+            return;
+        }
 
         setSaving(true);
 
@@ -613,46 +1011,196 @@ export function ProductEditor({
             const payload = {
                 ...form,
 
+                name:
+                    String(
+                        form.name || ""
+                    ).trim(),
+
+                slug:
+                    String(
+                        form.slug || ""
+                    ).trim(),
+
+                sku:
+                    String(
+                        form.sku || ""
+                    )
+                        .trim()
+                        .toUpperCase(),
+
+                status:
+                    form.status ||
+                    "draft",
+
                 basePrice:
                     Number(
-                        form.basePrice
+                        form.basePrice ||
+                        0
                     ),
 
                 compareAtPrice:
-                    form.compareAtPrice
-                        ? Number(
+                    form.compareAtPrice ===
+                        "" ||
+                        form.compareAtPrice ===
+                        null ||
+                        form.compareAtPrice ===
+                        undefined
+                        ? null
+                        : Number(
                             form.compareAtPrice
-                        )
-                        : null,
+                        ),
 
                 costPrice:
-                    form.costPrice
-                        ? Number(
+                    form.costPrice ===
+                        "" ||
+                        form.costPrice ===
+                        null ||
+                        form.costPrice ===
+                        undefined
+                        ? null
+                        : Number(
                             form.costPrice
-                        )
-                        : null,
+                        ),
 
                 stock:
                     Number(
-                        form.stock
+                        form.stock || 0
                     ),
 
                 lowStockThreshold:
                     Number(
-                        form.lowStockThreshold
+                        form.lowStockThreshold ||
+                        0
                     ),
 
                 brand:
-                    form.brand || null,
+                    normalizeId(
+                        form.brand
+                    ) || null,
+
+                categories:
+                    safeArray(
+                        form.categories
+                    )
+                        .map(
+                            normalizeId
+                        )
+                        .filter(Boolean),
 
                 tags:
-                    String(form.tags)
+                    String(
+                        form.tags || ""
+                    )
                         .split(",")
                         .map(
                             (item) =>
                                 item.trim()
                         )
                         .filter(Boolean),
+
+                media:
+                    safeArray(
+                        form.media
+                    ),
+
+                specifications:
+                    safeArray(
+                        form.specifications
+                    ),
+
+                attributes:
+                    safeObject(
+                        form.attributes
+                    ),
+
+                relatedProducts:
+                    safeArray(
+                        form.relatedProducts
+                    )
+                        .map(
+                            normalizeId
+                        )
+                        .filter(Boolean),
+
+                variants:
+                    safeArray(
+                        form.variants
+                    ),
+
+                featured:
+                    Boolean(
+                        form.featured
+                    ),
+
+                trending:
+                    Boolean(
+                        form.trending
+                    ),
+
+                trackInventory:
+                    Boolean(
+                        form.trackInventory
+                    ),
+
+                allowBackorder:
+                    Boolean(
+                        form.allowBackorder
+                    ),
+
+                shipping: {
+                    ...safeObject(
+                        form.shipping
+                    ),
+
+                    weight:
+                        optionalNumber(
+                            form.shipping
+                                ?.weight
+                        ),
+
+                    width:
+                        optionalNumber(
+                            form.shipping
+                                ?.width
+                        ),
+
+                    height:
+                        optionalNumber(
+                            form.shipping
+                                ?.height
+                        ),
+
+                    length:
+                        optionalNumber(
+                            form.shipping
+                                ?.length
+                        ),
+
+                    class:
+                        form.shipping
+                            ?.class ||
+                        "",
+                },
+
+                seo: {
+                    ...safeObject(
+                        form.seo
+                    ),
+
+                    title:
+                        form.seo?.title ||
+                        "",
+
+                    description:
+                        form.seo
+                            ?.description ||
+                        "",
+
+                    canonical:
+                        form.seo
+                            ?.canonical ||
+                        "",
+                },
             };
 
             const response =
@@ -661,10 +1209,9 @@ export function ProductEditor({
                         ? `/api/admin/products/${id}`
                         : "/api/admin/products",
                     {
-                        method:
-                            id
-                                ? "PATCH"
-                                : "POST",
+                        method: id
+                            ? "PATCH"
+                            : "POST",
 
                         headers: {
                             "Content-Type":
@@ -694,11 +1241,19 @@ export function ProductEditor({
                 "success"
             );
 
-            if (!id) {
+            if (
+                !id &&
+                data?.product?._id
+            ) {
                 window.location.href =
                     `/admin/products/${data.product._id}`;
             }
         } catch (error) {
+            console.error(
+                "Product save error:",
+                error
+            );
+
             toast(
                 error?.message ||
                 "Unable to save product",
@@ -710,805 +1265,1261 @@ export function ProductEditor({
     }
 
     if (loading) {
-        return <Loading />;
+        return (
+            <Box
+                sx={{
+                    minHeight: 320,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent:
+                        "center",
+                }}
+            >
+                <Stack
+                    spacing={2}
+                    alignItems="center"
+                >
+                    <CircularProgress />
+
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                    >
+                        Loading product...
+                    </Typography>
+                </Stack>
+            </Box>
+        );
     }
 
+    const categoryOptions =
+        safeArray(
+            meta.categories
+        ).map((category) =>
+            String(category._id)
+        );
+
+    const categoryNames =
+        new Map(
+            safeArray(
+                meta.categories
+            ).map((category) => [
+                String(
+                    category._id
+                ),
+
+                category.name ||
+                String(
+                    category._id
+                ),
+            ])
+        );
+
+    const selectedCategories =
+        safeArray(
+            form.categories
+        )
+            .map(String)
+            .filter((categoryId) =>
+                categoryOptions.includes(
+                    categoryId
+                )
+            );
+
+    const formGrid = {
+        display: "grid",
+
+        gridTemplateColumns: {
+            xs: "1fr",
+            md:
+                "repeat(2, minmax(0, 1fr))",
+        },
+
+        gap: 2,
+    };
+
+    const fullWidthField = {
+        gridColumn: {
+            xs: "auto",
+            md: "1 / -1",
+        },
+    };
+
     return (
-        <form onSubmit={save}>
-            <div className="form-card">
-                <h2>
-                    Core product
-                </h2>
-
-                <div className="form-grid">
-                    <div className="field">
-                        <label>
-                            Name
-                        </label>
-
-                        <MuiInput
-                            value={form.name}
-                            onChange={event => set("name", event.target.value)}
-                            required
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Slug
-                        </label>
-
-                        <MuiInput
-                            value={form.slug}
-                            onChange={event => set("slug", event.target.value)}
-                            required
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            SKU
-                        </label>
-
-                        <MuiInput
-                            value={form.sku}
-                            onChange={event => set("sku", event.target.value.toUpperCase())}
-                            required
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Status
-                        </label>
-
-                        <MuiSelect
-                            value={form.status}
-                            onChange={(event) =>
-                                set(
-                                    "status",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            <option value="draft">
-                                draft
-                            </option>
-
-                            <option value="published">
-                                published
-                            </option>
-
-                            <option value="archived">
-                                archived
-                            </option>
-                        </MuiSelect>
-                    </div>
-
-                    <div className="field full">
-                        <label>
-                            Short description
-                        </label>
-
-                        <MuiTextarea
-                            value={
-                                form.shortDescription ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shortDescription",
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field full">
-                        <label>
-                            Description
-                        </label>
-
-                        <MuiTextarea
-                            value={
-                                form.description ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "description",
-                                    event.target.value
-                                )
-                            }
-                            style={{
-                                minHeight: 180,
-                            }}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div className="form-card">
-                <h2>
-                    Merchandising
-                </h2>
-
-                <div className="form-grid">
-                    <div className="field">
-                        <label>
-                            Brand
-                        </label>
-
-                        <MuiSelect
-                            value={
-                                form.brand || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "brand",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            <option value="">
-                                No brand
-                            </option>
-
-                            {meta.brands.map(
-                                (brand) => (
-                                    <option
-                                        value={
-                                            brand._id
-                                        }
-                                        key={
-                                            brand._id
-                                        }
-                                    >
-                                        {
-                                            brand.name
-                                        }
-                                    </option>
-                                )
-                            )}
-                        </MuiSelect>
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Categories
-                        </label>
-
-                        <MuiSelect
-                            multiple
-                            value={
-                                form.categories ||
-                                []
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "categories",
-                                    Array.from(
-                                        event.target
-                                            .selectedOptions
-                                    ).map(
-                                        (option) =>
-                                            option.value
-                                    )
-                                )
-                            }
-                            style={{
-                                minHeight: 130,
-                            }}
-                        >
-                            {meta.categories.map(
-                                (category) => (
-                                    <option
-                                        value={
-                                            category._id
-                                        }
-                                        key={
-                                            category._id
-                                        }
-                                    >
-                                        {
-                                            category.name
-                                        }
-                                    </option>
-                                )
-                            )}
-                        </MuiSelect>
-                    </div>
-
-                    <div className="field full">
-                        <label>
-                            Tags (comma separated)
-                        </label>
-
-                        <MuiInput
-                            value={
-                                form.tags || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "tags",
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </div>
-
-                    <label>
-                        <MuiInput
-                            type="checkbox"
-                            checked={
-                                form.featured
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "featured",
-                                    event.target.checked
-                                )
-                            }
-                        />
-
-                        {" "}
-                        Featured
-                    </label>
-
-                    <label>
-                        <MuiInput
-                            type="checkbox"
-                            checked={
-                                form.trending
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "trending",
-                                    event.target.checked
-                                )
-                            }
-                        />
-
-                        {" "}
-                        Trending
-                    </label>
-                </div>
-            </div>
-
-            <div className="form-card">
-                <h2>
-                    Pricing & inventory
-                </h2>
-
-                <div className="form-grid">
-                    <div className="field">
-                        <label>
-                            Currency
-                        </label>
-
-                        <MuiSelect
-                            value={
-                                form.currency ||
-                                "USD"
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "currency",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            {[
-                                "USD",
-                                "EUR",
-                                "GBP",
-                                "BDT",
-                            ].map(
-                                (currency) => (
-                                    <option
-                                        key={
-                                            currency
-                                        }
-                                        value={
-                                            currency
-                                        }
-                                    >
-                                        {
-                                            currency
-                                        }
-                                    </option>
-                                )
-                            )}
-                        </MuiSelect>
-                    </div>
-
-                    {[
-                        [
-                            "basePrice",
-                            "Price",
-                        ],
-                        [
-                            "compareAtPrice",
-                            "Compare-at price",
-                        ],
-                        [
-                            "costPrice",
-                            "Cost",
-                        ],
-                        [
-                            "stock",
-                            "Stock",
-                        ],
-                        [
-                            "lowStockThreshold",
-                            "Low-stock threshold",
-                        ],
-                    ].map(
-                        ([key, label]) => (
-                            <div
-                                className="field"
-                                key={key}
-                            >
-                                <label>
-                                    {label}
-                                </label>
-
-                                <MuiInput
-                                    type="number"
-                                    step="0.01"
-                                    value={
-                                        form[key] ??
-                                        ""
-                                    }
-                                    onChange={(
-                                        event
-                                    ) =>
-                                        set(
-                                            key,
-                                            event.target
-                                                .value
-                                        )
-                                    }
-                                />
-                            </div>
-                        )
-                    )}
-
-                    <label>
-                        <MuiInput
-                            type="checkbox"
-                            checked={
-                                form.trackInventory
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "trackInventory",
-                                    event.target.checked
-                                )
-                            }
-                        />
-
-                        {" "}
-                        Track inventory
-                    </label>
-
-                    <label>
-                        <MuiInput
-                            type="checkbox"
-                            checked={
-                                form.allowBackorder
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "allowBackorder",
-                                    event.target.checked
-                                )
-                            }
-                        />
-
-                        {" "}
-                        Allow backorder
-                    </label>
-                </div>
-            </div>
-
-            <div className="form-card">
-                <h2>Media</h2>
-
-                <MuiInput
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={upload}
-                />
-
-                <div
-                    className="data-card"
-                    style={{
-                        marginTop: 15,
-                    }}
-                >
-                    {form.media.map(
-                        (media, index) => (
-                            <div
-                                className="summary-line"
-                                key={`${media.url}-${index}`}
-                            >
-                                <span>
-                                    {media.type}
-                                    {" · "}
-                                    {media.url}
-                                </span>
-
-                                <MuiButton
-                                    type="button"
-                                    className="link-button"
-                                    onClick={() =>
-                                        set(
-                                            "media",
-                                            form.media.filter(
-                                                (
-                                                    _,
-                                                    itemIndex
-                                                ) =>
-                                                    itemIndex !==
-                                                    index
-                                            )
-                                        )
-                                    }
-                                >
-                                    Remove
-                                </MuiButton>
-                            </div>
-                        )
-                    )}
-                </div>
-            </div>
-
-            <JsonField
-                label="Specifications"
-                value={
-                    form.specifications
-                }
-                onChange={(value) =>
-                    set(
-                        "specifications",
-                        value
-                    )
-                }
-                example='[{"key":"Material","value":"Aluminium"}]'
-            />
-
-            <JsonField
-                label="Attributes / filter values"
-                value={
-                    form.attributes ||
-                    {}
-                }
-                onChange={(value) =>
-                    set(
-                        "attributes",
-                        value
-                    )
-                }
-                example='{"Color":["Black","White"],"Size":["M","L"]}'
-            />
-
-            <JsonField
-                label="Related product IDs"
-                value={
-                    form.relatedProducts ||
-                    []
-                }
-                onChange={(value) =>
-                    set(
-                        "relatedProducts",
-                        value
-                    )
-                }
-                example='["PRODUCT_OBJECT_ID"]'
-            />
-
-            <JsonField
-                label="Variants"
-                value={
-                    form.variants
-                }
-                onChange={(value) =>
-                    set(
-                        "variants",
-                        value
-                    )
-                }
-                example='[{"name":"Black / M","sku":"SKU-BLK-M","price":99,"stock":10,"options":{"Color":"Black","Size":"M"}}]'
-            />
-
-            <div className="form-card">
-                <h2>
-                    Fulfilment & SEO
-                </h2>
-
-                <div className="form-grid">
-                    <div className="field">
-                        <label>
-                            Weight
-                        </label>
-
-                        <MuiInput
-                            type="number"
-                            step="0.01"
-                            value={
-                                form.shipping
-                                    ?.weight || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shipping",
-                                    {
-                                        ...form.shipping,
-
-                                        weight:
-                                            event.target
-                                                .value
-                                                ? Number(
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                                : null,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Shipping class
-                        </label>
-
-                        <MuiInput
-                            value={
-                                form.shipping
-                                    ?.class || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shipping",
-                                    {
-                                        ...form.shipping,
-                                        class:
-                                            event.target
-                                                .value,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Width
-                        </label>
-
-                        <MuiInput
-                            type="number"
-                            step="0.01"
-                            value={
-                                form.shipping
-                                    ?.width || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shipping",
-                                    {
-                                        ...form.shipping,
-
-                                        width:
-                                            event.target
-                                                .value
-                                                ? Number(
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                                : null,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Height
-                        </label>
-
-                        <MuiInput
-                            type="number"
-                            step="0.01"
-                            value={
-                                form.shipping
-                                    ?.height || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shipping",
-                                    {
-                                        ...form.shipping,
-
-                                        height:
-                                            event.target
-                                                .value
-                                                ? Number(
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                                : null,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            Length
-                        </label>
-
-                        <MuiInput
-                            type="number"
-                            step="0.01"
-                            value={
-                                form.shipping
-                                    ?.length || ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shipping",
-                                    {
-                                        ...form.shipping,
-
-                                        length:
-                                            event.target
-                                                .value
-                                                ? Number(
-                                                    event
-                                                        .target
-                                                        .value
-                                                )
-                                                : null,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field full">
-                        <label>
-                            Shipping information
-                        </label>
-
-                        <MuiTextarea
-                            value={
-                                form.shippingInfo ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "shippingInfo",
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field full">
-                        <label>
-                            Return information
-                        </label>
-
-                        <MuiTextarea
-                            value={
-                                form.returnInfo ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "returnInfo",
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            SEO title
-                        </label>
-
-                        <MuiInput
-                            value={
-                                form.seo?.title ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "seo",
-                                    {
-                                        ...form.seo,
-                                        title:
-                                            event.target
-                                                .value,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field">
-                        <label>
-                            SEO description
-                        </label>
-
-                        <MuiInput
-                            value={
-                                form.seo
-                                    ?.description ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "seo",
-                                    {
-                                        ...form.seo,
-                                        description:
-                                            event.target
-                                                .value,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="field full">
-                        <label>
-                            Canonical URL
-                            (optional)
-                        </label>
-
-                        <MuiInput
-                            value={
-                                form.seo
-                                    ?.canonical ||
-                                ""
-                            }
-                            onChange={(event) =>
-                                set(
-                                    "seo",
-                                    {
-                                        ...form.seo,
-                                        canonical:
-                                            event.target
-                                                .value,
-                                    }
-                                )
-                            }
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <MuiButton
-                type="submit"
-                className="button dark"
-                disabled={saving}
+        <Box
+            component="form"
+            onSubmit={save}
+            sx={{
+                display: "grid",
+                gap: 3,
+                width: "100%",
+            }}
+        >
+            {/* Core Product */}
+
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 1,
+                }}
             >
-                {saving
-                    ? "Saving…"
-                    : "Save product"}
-            </MuiButton>
-        </form>
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
+                            Core product
+                        </Typography>
+
+                        <Divider />
+
+                        <Box sx={formGrid}>
+                            <MuiInput
+                                label="Name"
+                                value={
+                                    form.name ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "name",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                required
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Slug"
+                                value={
+                                    form.slug ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "slug",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                required
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="SKU"
+                                value={
+                                    form.sku ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "sku",
+                                        event.target.value.toUpperCase()
+                                    )
+                                }
+                                required
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                select
+                                label="Status"
+                                value={
+                                    form.status ||
+                                    "draft"
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "status",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                            >
+                                <MenuItem value="draft">
+                                    Draft
+                                </MenuItem>
+
+                                <MenuItem value="published">
+                                    Published
+                                </MenuItem>
+
+                                <MenuItem value="archived">
+                                    Archived
+                                </MenuItem>
+                            </MuiInput>
+
+                            <MuiInput
+                                label="Short description"
+                                value={
+                                    form.shortDescription ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "shortDescription",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                multiline
+                                minRows={3}
+                                fullWidth
+                                sx={
+                                    fullWidthField
+                                }
+                            />
+
+                            <MuiInput
+                                label="Description"
+                                value={
+                                    form.description ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "description",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                multiline
+                                minRows={7}
+                                fullWidth
+                                sx={
+                                    fullWidthField
+                                }
+                            />
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Merchandising */}
+
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 1,
+                }}
+            >
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
+                            Merchandising
+                        </Typography>
+
+                        <Divider />
+
+                        <Box sx={formGrid}>
+                            <MuiInput
+                                select
+                                label="Brand"
+                                value={
+                                    form.brand ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "brand",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                            >
+                                <MenuItem value="">
+                                    No brand
+                                </MenuItem>
+
+                                {safeArray(
+                                    meta.brands
+                                ).map(
+                                    (
+                                        brand
+                                    ) => (
+                                        <MenuItem
+                                            key={String(
+                                                brand._id
+                                            )}
+                                            value={String(
+                                                brand._id
+                                            )}
+                                        >
+                                            {
+                                                brand.name
+                                            }
+                                        </MenuItem>
+                                    )
+                                )}
+                            </MuiInput>
+
+                            <Autocomplete
+                                multiple
+                                filterSelectedOptions
+                                disableCloseOnSelect
+                                options={
+                                    categoryOptions
+                                }
+                                value={
+                                    selectedCategories
+                                }
+                                getOptionLabel={(
+                                    option
+                                ) =>
+                                    categoryNames.get(
+                                        String(
+                                            option
+                                        )
+                                    ) ||
+                                    String(
+                                        option
+                                    )
+                                }
+                                isOptionEqualToValue={(
+                                    option,
+                                    value
+                                ) =>
+                                    String(
+                                        option
+                                    ) ===
+                                    String(
+                                        value
+                                    )
+                                }
+                                onChange={(
+                                    _event,
+                                    values
+                                ) => {
+                                    set(
+                                        "categories",
+                                        safeArray(
+                                            values
+                                        ).map(
+                                            String
+                                        )
+                                    );
+                                }}
+                                renderInput={(
+                                    params
+                                ) => (
+                                    <MuiInput
+                                        {...params}
+                                        label="Categories"
+                                        placeholder="Select categories"
+                                        fullWidth
+                                    />
+                                )}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Tags (comma separated)"
+                                value={
+                                    form.tags ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "tags",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                                sx={
+                                    fullWidthField
+                                }
+                            />
+
+                            <Stack
+                                direction={{
+                                    xs: "column",
+                                    sm: "row",
+                                }}
+                                spacing={2}
+                                sx={
+                                    fullWidthField
+                                }
+                            >
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={Boolean(
+                                                form.featured
+                                            )}
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                set(
+                                                    "featured",
+                                                    event
+                                                        .target
+                                                        .checked
+                                                )
+                                            }
+                                        />
+                                    }
+                                    label="Featured"
+                                />
+
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={Boolean(
+                                                form.trending
+                                            )}
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                set(
+                                                    "trending",
+                                                    event
+                                                        .target
+                                                        .checked
+                                                )
+                                            }
+                                        />
+                                    }
+                                    label="Trending"
+                                />
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Pricing */}
+
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 1,
+                }}
+            >
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
+                            Pricing & inventory
+                        </Typography>
+
+                        <Divider />
+
+                        <Box sx={formGrid}>
+                            <MuiInput
+                                select
+                                label="Currency"
+                                value={
+                                    form.currency ||
+                                    "USD"
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "currency",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                            >
+                                {[
+                                    "USD",
+                                    "EUR",
+                                    "GBP",
+                                    "BDT",
+                                ].map(
+                                    (
+                                        currency
+                                    ) => (
+                                        <MenuItem
+                                            key={
+                                                currency
+                                            }
+                                            value={
+                                                currency
+                                            }
+                                        >
+                                            {
+                                                currency
+                                            }
+                                        </MenuItem>
+                                    )
+                                )}
+                            </MuiInput>
+
+                            <MuiInput
+                                label="Price"
+                                type="number"
+                                value={
+                                    form.basePrice ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "basePrice",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                              
+                                required
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Compare-at price"
+                                type="number"
+                                value={
+                                    form.compareAtPrice ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "compareAtPrice",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Cost"
+                                type="number"
+                                value={
+                                    form.costPrice ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "costPrice",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Stock"
+                                type="number"
+                                value={
+                                    form.stock ??
+                                    0
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "stock",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Low-stock threshold"
+                                type="number"
+                                value={
+                                    form.lowStockThreshold ??
+                                    5
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "lowStockThreshold",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                }}
+                                fullWidth
+                            />
+
+                            <Stack
+                                direction={{
+                                    xs: "column",
+                                    sm: "row",
+                                }}
+                                spacing={2}
+                                sx={
+                                    fullWidthField
+                                }
+                            >
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={Boolean(
+                                                form.trackInventory
+                                            )}
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                set(
+                                                    "trackInventory",
+                                                    event
+                                                        .target
+                                                        .checked
+                                                )
+                                            }
+                                        />
+                                    }
+                                    label="Track inventory"
+                                />
+
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={Boolean(
+                                                form.allowBackorder
+                                            )}
+                                            onChange={(
+                                                event
+                                            ) =>
+                                                set(
+                                                    "allowBackorder",
+                                                    event
+                                                        .target
+                                                        .checked
+                                                )
+                                            }
+                                        />
+                                    }
+                                    label="Allow backorder"
+                                />
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Media */}
+
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 1,
+                }}
+            >
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
+                            Media
+                        </Typography>
+
+                        <Divider />
+
+                        <MuiInput
+                            type="file"
+                            fullWidth
+                            onChange={upload}
+                            inputProps={{
+                                accept:
+                                    "image/*,video/*",
+                            }}
+                            disabled={
+                                uploading
+                            }
+                            helperText={
+                                uploading
+                                    ? "Uploading media..."
+                                    : "Upload an image or video."
+                            }
+                        />
+
+                        {uploading && (
+                            <CircularProgress
+                                size={24}
+                            />
+                        )}
+
+                        {safeArray(
+                            form.media
+                        ).length === 0 ? (
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                            >
+                                No media uploaded.
+                            </Typography>
+                        ) : (
+                            <Stack spacing={1.5}>
+                                {safeArray(
+                                    form.media
+                                ).map(
+                                    (
+                                        media,
+                                        index
+                                    ) => (
+                                        <Card
+                                            key={`${media.url}-${index}`}
+                                            variant="outlined"
+                                        >
+                                            <CardContent
+                                                sx={{
+                                                    "&:last-child":
+                                                    {
+                                                        pb: 2,
+                                                    },
+                                                }}
+                                            >
+                                                <Stack
+                                                    direction={{
+                                                        xs: "column",
+                                                        md: "row",
+                                                    }}
+                                                    spacing={
+                                                        2
+                                                    }
+                                                    alignItems={{
+                                                        xs: "stretch",
+                                                        md: "center",
+                                                    }}
+                                                    justifyContent="space-between"
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            minWidth:
+                                                                0,
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            variant="body2"
+                                                            fontWeight={
+                                                                700
+                                                            }
+                                                        >
+                                                            {media.type ||
+                                                                "media"}
+                                                        </Typography>
+
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            sx={{
+                                                                overflowWrap:
+                                                                    "anywhere",
+                                                            }}
+                                                        >
+                                                            {media.url}
+                                                        </Typography>
+                                                    </Box>
+
+                                                    <Button
+                                                        type="button"
+                                                        color="error"
+                                                        variant="outlined"
+                                                        onClick={() =>
+                                                            setForm(
+                                                                (
+                                                                    current
+                                                                ) => ({
+                                                                    ...current,
+
+                                                                    media:
+                                                                        safeArray(
+                                                                            current.media
+                                                                        ).filter(
+                                                                            (
+                                                                                _,
+                                                                                itemIndex
+                                                                            ) =>
+                                                                                itemIndex !==
+                                                                                index
+                                                                        ),
+                                                                })
+                                                            )
+                                                        }
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </Stack>
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                )}
+                            </Stack>
+                        )}
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Structured Data */}
+
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 1,
+                }}
+            >
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
+                            Structured product data
+                        </Typography>
+
+                        <Divider />
+
+                        <MuiInput
+                            label="Specifications"
+                            value={
+                                jsonDrafts.specifications
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                updateJsonField(
+                                    "specifications",
+                                    event
+                                        .target
+                                        .value
+                                )
+                            }
+                            error={Boolean(
+                                jsonErrors.specifications
+                            )}
+                            helperText={
+                                jsonErrors.specifications ||
+                                'Example: [{"key":"Material","value":"Aluminium"}]'
+                            }
+                            multiline
+                            minRows={6}
+                            fullWidth
+                        />
+
+                        <MuiInput
+                            label="Attributes / filter values"
+                            value={
+                                jsonDrafts.attributes
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                updateJsonField(
+                                    "attributes",
+                                    event
+                                        .target
+                                        .value
+                                )
+                            }
+                            error={Boolean(
+                                jsonErrors.attributes
+                            )}
+                            helperText={
+                                jsonErrors.attributes ||
+                                'Example: {"Color":["Black","White"],"Size":["M","L"]}'
+                            }
+                            multiline
+                            minRows={6}
+                            fullWidth
+                        />
+
+                        <MuiInput
+                            label="Related product IDs"
+                            value={
+                                jsonDrafts.relatedProducts
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                updateJsonField(
+                                    "relatedProducts",
+                                    event
+                                        .target
+                                        .value
+                                )
+                            }
+                            error={Boolean(
+                                jsonErrors.relatedProducts
+                            )}
+                            helperText={
+                                jsonErrors.relatedProducts ||
+                                'Example: ["PRODUCT_OBJECT_ID"]'
+                            }
+                            multiline
+                            minRows={5}
+                            fullWidth
+                        />
+
+                        <MuiInput
+                            label="Variants"
+                            value={
+                                jsonDrafts.variants
+                            }
+                            onChange={(
+                                event
+                            ) =>
+                                updateJsonField(
+                                    "variants",
+                                    event
+                                        .target
+                                        .value
+                                )
+                            }
+                            error={Boolean(
+                                jsonErrors.variants
+                            )}
+                            helperText={
+                                jsonErrors.variants ||
+                                'Example: [{"name":"Black / M","sku":"SKU-BLK-M","price":99,"stock":10,"options":{"Color":"Black","Size":"M"}}]'
+                            }
+                            multiline
+                            minRows={7}
+                            fullWidth
+                        />
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Fulfilment & SEO */}
+
+            <Card
+                variant="outlined"
+                sx={{
+                    borderRadius: 1,
+                }}
+            >
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Typography
+                            variant="h6"
+                            fontWeight={700}
+                        >
+                            Fulfilment & SEO
+                        </Typography>
+
+                        <Divider />
+
+                        <Box sx={formGrid}>
+                            <MuiInput
+                                label="Weight"
+                                type="number"
+                                value={
+                                    form.shipping
+                                        ?.weight ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setShipping(
+                                        "weight",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Shipping class"
+                                value={
+                                    form.shipping
+                                        ?.class ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setShipping(
+                                        "class",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Width"
+                                type="number"
+                                value={
+                                    form.shipping
+                                        ?.width ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setShipping(
+                                        "width",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Height"
+                                type="number"
+                                value={
+                                    form.shipping
+                                        ?.height ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setShipping(
+                                        "height",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Length"
+                                type="number"
+                                value={
+                                    form.shipping
+                                        ?.length ??
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setShipping(
+                                        "length",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Shipping information"
+                                value={
+                                    form.shippingInfo ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "shippingInfo",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                multiline
+                                minRows={4}
+                                fullWidth
+                                sx={
+                                    fullWidthField
+                                }
+                            />
+
+                            <MuiInput
+                                label="Return information"
+                                value={
+                                    form.returnInfo ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    set(
+                                        "returnInfo",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                multiline
+                                minRows={4}
+                                fullWidth
+                                sx={
+                                    fullWidthField
+                                }
+                            />
+
+                            <MuiInput
+                                label="SEO title"
+                                value={
+                                    form.seo
+                                        ?.title ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setSeo(
+                                        "title",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="SEO description"
+                                value={
+                                    form.seo
+                                        ?.description ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setSeo(
+                                        "description",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                            />
+
+                            <MuiInput
+                                label="Canonical URL (optional)"
+                                value={
+                                    form.seo
+                                        ?.canonical ||
+                                    ""
+                                }
+                                onChange={(
+                                    event
+                                ) =>
+                                    setSeo(
+                                        "canonical",
+                                        event
+                                            .target
+                                            .value
+                                    )
+                                }
+                                fullWidth
+                                sx={
+                                    fullWidthField
+                                }
+                            />
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            <Box>
+                <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    disabled={
+                        saving ||
+                        uploading
+                    }
+                    startIcon={
+                        saving ? (
+                            <CircularProgress
+                                size={18}
+                                color="inherit"
+                            />
+                        ) : null
+                    }
+                >
+                    {saving
+                        ? "Saving..."
+                        : "Save product"}
+                </Button>
+            </Box>
+        </Box>
     );
 }
 
