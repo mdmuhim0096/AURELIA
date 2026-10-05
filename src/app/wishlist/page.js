@@ -1,0 +1,1 @@
+import WishlistClient from"@/components/account/WishlistClient";export const metadata={title:"Wishlist",robots:{index:false,follow:false}};export default function Page(){return <div className="container section-pad"><div className="section-head"><div><span className="eyebrow">Saved pieces</span><h1 className="section-title">Wishlist.</h1></div></div><WishlistClient/></div>}

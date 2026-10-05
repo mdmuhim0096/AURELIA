@@ -1,0 +1,1 @@
+import{OrderAdmin}from"@/components/admin/OrdersManager";export default async function Page({params}){const{id}=await params;return <><div className="dashboard-head"><div><span className="eyebrow">Order administration</span><h1>Manage order.</h1></div></div><OrderAdmin id={id}/></>}

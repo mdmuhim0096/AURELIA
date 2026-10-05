@@ -1,0 +1,1 @@
+import{RegisterForm}from"@/components/account/AuthForms";export const metadata={title:"Create account",robots:{index:false,follow:false}};export default function Page(){return <div className="auth-shell"><RegisterForm/></div>}

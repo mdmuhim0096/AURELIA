@@ -1,0 +1,1 @@
+import{ProductEditor}from"@/components/admin/ProductManager";export default function Page(){return <><div className="dashboard-head"><div><span className="eyebrow">Create</span><h1>New product.</h1></div></div><ProductEditor/></>}

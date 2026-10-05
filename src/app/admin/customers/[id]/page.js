@@ -1,0 +1,1 @@
+import{CustomerDetail}from"@/components/admin/CustomersManager";export default async function Page({params}){const{id}=await params;return <><div className="dashboard-head"><div><span className="eyebrow">Customer management</span><h1>Account detail.</h1></div></div><CustomerDetail id={id}/></>}

@@ -1,0 +1,1 @@
+import CheckoutClient from "@/components/storefront/CheckoutClient";export const metadata={title:"Checkout",robots:{index:false,follow:false}};export default function CheckoutPage(){return <div className="container"><header className="page-hero"><span className="eyebrow">Secure checkout</span><h1 className="display">Almost yours.</h1></header><CheckoutClient/></div>}

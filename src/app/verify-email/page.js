@@ -1,0 +1,1 @@
+import{Suspense}from"react";import{VerifyEmail}from"@/components/account/AuthForms";export const metadata={title:"Verify email",robots:{index:false,follow:false}};export default function Page(){return <div className="auth-shell"><Suspense><VerifyEmail/></Suspense></div>}

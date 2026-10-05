@@ -1,0 +1,1 @@
+import SecurityClient from"@/components/account/SecurityClient";export const metadata={title:"Password & security"};export default function Page(){return <><div className="dashboard-head"><div><span className="eyebrow">Security</span><h1>Password.</h1></div></div><SecurityClient/></>}

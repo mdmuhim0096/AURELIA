@@ -1,0 +1,8 @@
+import { auth } from "@/auth";
+import { connectDB } from "@/lib/db";
+import Wishlist from "@/models/Wishlist";
+import Product from "@/models/Product";
+import { fail, fromError, ok, readJson } from "@/lib/api";
+export async function GET() { try { const session = await auth(); if (!session?.user?.id) return fail("Authentication required", 401); await connectDB(); const wishlist = await Wishlist.findOne({ user: session.user.id }).populate("products", "name slug basePrice compareAtPrice media ratingAverage stock").lean(); return ok({ items: wishlist?.products || [] }); } catch (error) { return fromError(error, "Unable to load wishlist"); } }
+export async function POST(request) { try { const session = await auth(); if (!session?.user?.id) return fail("Authentication required", 401); const { productId } = await readJson(request); await connectDB(); if (!(await Product.exists({ _id: productId, status: "published" }))) return fail("Product not found", 404); await Wishlist.updateOne({ user: session.user.id }, { $addToSet: { products: productId } }, { upsert: true }); return ok({ added: true }); } catch (error) { return fromError(error, "Unable to update wishlist"); } }
+export async function DELETE(request) { try { const session = await auth(); if (!session?.user?.id) return fail("Authentication required", 401); const productId = new URL(request.url).searchParams.get("productId"); await connectDB(); await Wishlist.updateOne({ user: session.user.id }, { $pull: { products: productId } }); return ok({ removed: true }); } catch (error) { return fromError(error, "Unable to update wishlist"); } }

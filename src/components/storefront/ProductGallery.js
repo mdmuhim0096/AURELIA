@@ -1,0 +1,7 @@
+"use client";
+import { MuiButton } from "@/components/ui/MuiFormControls";
+import { useState } from "react";
+import Image from "next/image";
+import CloseRounded from "@mui/icons-material/CloseRounded";
+import IconButton from "@mui/material/IconButton";
+export default function ProductGallery({ media = [], name }) { const [zoom, setZoom] = useState(null); const items = media.length ? media : [{type:"placeholder"}]; return <><div className="gallery-grid">{items.map((m,i)=><div className="gallery-item" key={`${m.url||"placeholder"}-${i}`}>{m.type === "video" ? <video src={m.url} controls playsInline preload="metadata" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : m.url ? <MuiButton onClick={()=>setZoom(m)} style={{border:0,padding:0,width:"100%",height:"100%",cursor:"zoom-in",background:"transparent",position:"relative"}}><Image src={m.url} alt={m.alt||name} fill sizes="(max-width:720px) 100vw, 55vw" style={{objectFit:"cover"}}/></MuiButton> : <div className="hero-card" style={{width:"100%",height:"100%",borderRadius:0}}/>}</div>)}</div>{zoom&&<div onClick={()=>setZoom(null)} style={{position:"fixed",inset:0,zIndex:1800,background:"rgba(0,0,0,.92)",display:"grid",placeItems:"center",padding:30}}><IconButton onClick={()=>setZoom(null)} sx={{position:"absolute",top:20,right:20,color:"white"}}><CloseRounded/></IconButton><div style={{position:"relative",width:"min(1000px,90vw)",height:"85vh"}}><Image src={zoom.url} alt={zoom.alt||name} fill sizes="90vw" style={{objectFit:"contain"}}/></div></div>}</>; }

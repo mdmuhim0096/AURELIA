@@ -1,0 +1,1 @@
+import{ProductEditor}from"@/components/admin/ProductManager";export default async function Page({params}){const{id}=await params;return <><div className="dashboard-head"><div><span className="eyebrow">Catalog editor</span><h1>Edit product.</h1></div></div><ProductEditor id={id}/></>}

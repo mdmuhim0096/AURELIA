@@ -1,0 +1,1 @@
+import{Suspense}from"react";import{LoginForm}from"@/components/account/AuthForms";export const metadata={title:"Sign in",robots:{index:false,follow:false}};export default function Page(){return <div className="auth-shell"><Suspense><LoginForm/></Suspense></div>}

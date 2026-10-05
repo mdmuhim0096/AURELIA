@@ -1,0 +1,7 @@
+import { auth } from "@/auth";
+import { connectDB } from "@/lib/db";
+import RecentlyViewed from "@/models/RecentlyViewed";
+import { getGuestId } from "@/lib/commerce/guest";
+import { fail, fromError, ok, readJson } from "@/lib/api";
+export async function GET() { try { const session = await auth(); const guestId = await getGuestId(); await connectDB(); const filter = session?.user?.id ? { user: session.user.id } : guestId ? { guestId } : null; if (!filter) return ok({ items: [] }); const items = await RecentlyViewed.find(filter).populate("product", "name slug basePrice compareAtPrice media ratingAverage stock status").sort({ viewedAt: -1 }).limit(12).lean(); return ok({ items: items.filter((i) => i.product?.status === "published").map((i) => i.product) }); } catch (error) { return fromError(error, "Unable to load recently viewed products"); } }
+export async function POST(request) { try { const { productId } = await readJson(request); if (!productId) return fail("Product ID is required", 400); const session = await auth(); const guestId = await getGuestId({ create: true }); await connectDB(); const identity = session?.user?.id ? { user: session.user.id } : { guestId }; await RecentlyViewed.findOneAndUpdate({ ...identity, product: productId }, { $set: { viewedAt: new Date(), user: session?.user?.id || null, guestId: session?.user?.id ? null : guestId } }, { upsert: true }); return ok({ saved: true }); } catch (error) { return fromError(error, "Unable to update product history"); } }

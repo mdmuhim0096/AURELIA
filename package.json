@@ -1,0 +1,46 @@
+{
+  "name": "premium-commerce-platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "seed": "node scripts/seed.js",
+    "seed:rbac": "node scripts/seed-rbac.js",
+    "check": "npm run lint && npm run build",
+    "verify:syntax": "node scripts/verify-syntax.js"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "latest",
+    "@emotion/styled": "latest",
+    "@mui/icons-material": "latest",
+    "@mui/material": "latest",
+    "@mui/material-nextjs": "^9.4.0",
+    "@react-three/drei": "latest",
+    "@react-three/fiber": "latest",
+    "bcryptjs": "latest",
+    "gsap": "latest",
+    "lucide-react": "latest",
+    "mongoose": "latest",
+    "next": "16.3.6",
+    "next-auth": "^5.0.0-beta.32",
+    "nodemailer": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "stripe": "latest",
+    "three": "latest",
+    "zod": "latest",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "eslint": "latest",
+    "eslint-config-next": "16.3.6"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

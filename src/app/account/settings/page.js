@@ -1,0 +1,1 @@
+import SettingsClient from"@/components/account/SettingsClient";export const metadata={title:"Account settings"};export default function Page(){return <><div className="dashboard-head"><div><span className="eyebrow">Preferences</span><h1>Account settings.</h1></div></div><SettingsClient/></>}

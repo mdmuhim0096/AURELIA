@@ -1,0 +1,1 @@
+import{ForgotForm}from"@/components/account/AuthForms";export const metadata={title:"Forgot password",robots:{index:false,follow:false}};export default function Page(){return <div className="auth-shell"><ForgotForm/></div>}

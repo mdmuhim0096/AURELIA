@@ -1,0 +1,1 @@
+"use client";import{useEffect}from"react";export default function SearchHistoryTracker({query,resultCount}){useEffect(()=>{if(query)fetch("/api/search/history",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query,resultCount})}).catch(()=>{})},[query,resultCount]);return null}

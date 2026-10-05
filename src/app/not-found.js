@@ -1,0 +1,1 @@
+import Link from"next/link";export default function NotFound(){return <div className="auth-shell"><div className="auth-card" style={{textAlign:"center"}}><span className="eyebrow">404</span><h1>Not found.</h1><p className="muted">The page or product you requested is unavailable.</p><Link className="button dark" href="/shop">Browse products</Link></div></div>}

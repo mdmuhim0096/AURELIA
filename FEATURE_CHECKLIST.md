@@ -1,0 +1,58 @@
+# Master Feature Coverage Checklist
+
+This file is the implementation trace for the supplied master command. A feature is not considered implemented merely because a UI element exists.
+
+- [x] Next.js App Router architecture, React, JavaScript-only source
+- [x] Material UI, GSAP/ScrollTrigger, React Three Fiber, Zustand
+- [x] MongoDB/Mongoose models and indexes
+- [x] Auth.js credentials auth, email verification, reset password, security settings
+- [x] Responsive premium storefront and hero
+- [x] Mega menu, nested categories, brands, featured/trending/promotional areas
+- [x] Global search, suggestions/autocomplete and search history
+- [x] Category/brand/tag/SKU/attribute/price/rating/availability filtering
+- [x] Pagination and sorting
+- [x] Recently viewed/product history
+- [x] Nested category architecture, banners/descriptions/filters/featured/trending
+- [x] Product gallery, zoom, video, variants/options/SKU/stock/pricing/discount/specifications
+- [x] Shipping/returns, wishlist, cart, buy flow, compare, related/recommended/recent
+- [x] Product reviews/ratings and customer Q&A
+- [x] Guest/auth cart, quantities, variants, stock validation, coupon, tax, shipping, totals
+- [x] Save for later, cart persistence and post-login guest-cart merge
+- [x] Multi-step checkout, guest/user checkout, addresses, delivery, discounts, tax, summary
+- [x] Stripe module + webhook verification
+- [x] PayPal module + webhook verification
+- [x] Alipay module + signature verification
+- [x] Payoneer capability gating (no fake unsupported merchant flow)
+- [x] Payment records/status/failure/cancel/refund/partial-refund architecture
+- [x] Idempotency and duplicate webhook protection
+- [x] Wallet balances, ledger, top-up capability, checkout, refund/credit/debit/history
+- [x] Complete order status lifecycle, tracking/shipment fields, timeline, invoices
+- [x] Cancellation, refund and return request flows
+- [x] Review media, verified purchase, moderation/reporting/voting/distribution/average
+- [x] Customer dashboard sections including product history and support
+- [x] Enterprise admin shell
+- [x] Analytics metrics/trends/category/product/country/customer/wallet/payment/refund data
+- [x] Product/variant/inventory/SKU/pricing/discount/media/spec/category/brand/tag/SEO management
+- [x] Order admin search/filter/status/shipping/tracking/cancel/refund/returns/payment/history/invoice
+- [x] Customer search/edit/status/history/wallet/support/roles/activity foundations
+- [x] Configurable RBAC roles and permission seeding
+- [x] Coupons, campaigns, promotional settings, homepage/recommendation/related rules storage
+- [x] Transactional notification and email abstraction
+- [x] Vercel-friendly Resend/Brevo HTTP email with optional SMTP adapter
+- [x] Support tickets, conversations, history, agent dashboard, presence, typing, read state, attachments
+- [ ] True push-based real-time support communication (current implementation uses 3.5–4 second polling)
+- [x] GSAP reveals/parallax/pinning/horizontal transitions/hover/page motion foundations
+- [x] Optional 3D hero/product experience with dynamic client-only loading
+- [x] Scroll-controlled video with reduced-motion/mobile safeguards
+- [x] Image/font/bundle/dynamic import/caching/lazy-loading/streaming-minded architecture
+- [x] Authentication/authorization/validation/rate limiting/security headers/payment security
+- [x] Dynamic metadata, OpenGraph/Twitter metadata, product/breadcrumb structured data, sitemap, robots, canonicals, brand/category landing metadata, noindex for private/transactional/search pages
+- [x] Mobile/tablet/laptop/desktop responsive design
+- [x] Loading/empty/error/success/toast/modal/confirmation state foundations
+- [x] Modular UI/services/models/validation/payment/email/webhook/admin structure
+- [x] Audit logs with actor/action/resource/previous/new/timestamp/request metadata fields
+- [x] Server-side error handling and sanitized API responses
+- [x] Seed scripts for permissions/roles, optional admin and QA catalog data
+- [ ] Credential-backed live provider QA (requires your real/sandbox service credentials)
+- [ ] Full `npm run check` in this workspace (npm registry is unavailable here; source parser checks pass)
+- [ ] End-to-end browser QA against a deployed MongoDB/payment/email configuration

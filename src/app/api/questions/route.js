@@ -1,0 +1,6 @@
+import { auth } from "@/auth";
+import { connectDB } from "@/lib/db";
+import ProductQuestion from "@/models/ProductQuestion";
+import { fail, fromError, ok, readJson } from "@/lib/api";
+export async function GET(request) { try { const productId = new URL(request.url).searchParams.get("productId"); if (!productId) return fail("Product ID is required", 400); await connectDB(); const items = await ProductQuestion.find({ product: productId, status: "published" }).populate("user", "name").populate("answers.user", "name role").sort({ createdAt: -1 }).lean(); return ok({ items }); } catch (error) { return fromError(error, "Unable to load questions"); } }
+export async function POST(request) { try { const session = await auth(); if (!session?.user?.id) return fail("Authentication required", 401); const { productId, question } = await readJson(request); if (!productId || !String(question || "").trim()) return fail("Product and question are required", 400); await connectDB(); const item = await ProductQuestion.create({ product: productId, user: session.user.id, question: String(question).trim(), status: "pending" }); return ok({ question: item }, { status: 201 }); } catch (error) { return fromError(error, "Unable to submit question"); } }

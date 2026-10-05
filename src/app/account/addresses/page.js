@@ -1,0 +1,1 @@
+import AddressesClient from "@/components/account/AddressesClient"; export const metadata = { title: "Addresses" }; export default function Page() { return <><div className="dashboard-head"><div><span className="eyebrow">Delivery details</span><h1>Addresses.</h1></div></div><AddressesClient /></> }

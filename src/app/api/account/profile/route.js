@@ -1,0 +1,7 @@
+import { auth } from "@/auth";
+import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import { audit } from "@/lib/auth/audit";
+import { fail, fromError, ok, readJson } from "@/lib/api";
+export async function GET() { try { const session = await auth(); if (!session?.user?.id) return fail("Authentication required", 401); await connectDB(); const user = await User.findById(session.user.id).select("name email phone avatar emailVerifiedAt preferences marketingOptIn createdAt").lean(); return ok({ user }); } catch (error) { return fromError(error, "Unable to load profile"); } }
+export async function PATCH(request) { try { const session = await auth(); if (!session?.user?.id) return fail("Authentication required", 401); const body = await readJson(request); await connectDB(); const updates = {}; for (const key of ["name","phone","avatar","marketingOptIn","preferences"]) if (body[key] !== undefined) updates[key] = body[key]; const previous = await User.findById(session.user.id).select("name phone avatar marketingOptIn preferences").lean(); await User.updateOne({ _id: session.user.id }, { $set: updates }, { runValidators: true }); await audit({ actor: session.user.id, action: "user.profile_updated", resourceType: "User", resourceId: session.user.id, previousValue: previous, newValue: updates }); return ok({ updated: true }); } catch (error) { return fromError(error, "Unable to update profile"); } }
