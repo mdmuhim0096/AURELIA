@@ -1801,7 +1801,7 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                              
                                 required
                                 fullWidth
                             />
@@ -1823,7 +1823,10 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
                                 fullWidth
                             />
 
@@ -1844,8 +1847,11 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
-
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
                             />
 
                             <MuiInput
@@ -1865,7 +1871,10 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                }}
+                                fullWidth
                             />
 
                             <MuiInput
@@ -1885,7 +1894,10 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                }}
+                                fullWidth
                             />
 
                             <Stack
@@ -1968,11 +1980,18 @@ export function ProductEditor({ id }) {
                             type="file"
                             fullWidth
                             onChange={upload}
-
+                            inputProps={{
+                                accept:
+                                    "image/*,video/*",
+                            }}
                             disabled={
                                 uploading
                             }
-
+                            helperText={
+                                uploading
+                                    ? "Uploading media..."
+                                    : "Upload an image or video."
+                            }
                         />
 
                         {uploading && (
@@ -2129,10 +2148,13 @@ export function ProductEditor({ id }) {
                             error={Boolean(
                                 jsonErrors.specifications
                             )}
-
+                            helperText={
+                                jsonErrors.specifications ||
+                                'Example: [{"key":"Material","value":"Aluminium"}]'
+                            }
                             multiline
                             minRows={6}
-
+                            fullWidth
                         />
 
                         <MuiInput
@@ -2153,10 +2175,13 @@ export function ProductEditor({ id }) {
                             error={Boolean(
                                 jsonErrors.attributes
                             )}
-
+                            helperText={
+                                jsonErrors.attributes ||
+                                'Example: {"Color":["Black","White"],"Size":["M","L"]}'
+                            }
                             multiline
                             minRows={6}
-
+                            fullWidth
                         />
 
                         <MuiInput
@@ -2177,10 +2202,13 @@ export function ProductEditor({ id }) {
                             error={Boolean(
                                 jsonErrors.relatedProducts
                             )}
-
+                            helperText={
+                                jsonErrors.relatedProducts ||
+                                'Example: ["PRODUCT_OBJECT_ID"]'
+                            }
                             multiline
                             minRows={5}
-
+                            fullWidth
                         />
 
                         <MuiInput
@@ -2201,10 +2229,13 @@ export function ProductEditor({ id }) {
                             error={Boolean(
                                 jsonErrors.variants
                             )}
-
+                            helperText={
+                                jsonErrors.variants ||
+                                'Example: [{"name":"Black / M","sku":"SKU-BLK-M","price":99,"stock":10,"options":{"Color":"Black","Size":"M"}}]'
+                            }
                             multiline
                             minRows={7}
-
+                            fullWidth
                         />
                     </Stack>
                 </CardContent>
@@ -2248,7 +2279,11 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
                             />
 
                             <MuiInput
@@ -2289,7 +2324,11 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
                             />
 
                             <MuiInput
@@ -2310,7 +2349,11 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
                             />
 
                             <MuiInput
@@ -2331,7 +2374,11 @@ export function ProductEditor({ id }) {
                                             .value
                                     )
                                 }
-
+                                inputProps={{
+                                    min: 0,
+                                    step: "0.01",
+                                }}
+                                fullWidth
                             />
 
                             <MuiInput

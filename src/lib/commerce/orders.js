@@ -64,22 +64,99 @@ export async function markOrderPaid(orderId, actor = null) {
   await connectDB();
   const order = await Order.findById(orderId);
   if (!order) return null;
-  if (order.paymentStatus === "paid") return order;
-  // Atomic stock guards prevent overselling after a provider confirms payment.
-  for (const item of order.items) {
-    if (item.variant) {
-      const variant = await ProductVariant.findOneAndUpdate({ _id: item.variant, $or: [{ stock: { $gte: item.quantity } }, { stock: { $exists: false } }] }, { $inc: { stock: -item.quantity } });
-      if (!variant) throw Object.assign(new Error(`Insufficient stock for ${item.sku}`), { status: 409 });
-      await Product.updateOne({ _id: item.product }, { $inc: { salesCount: item.quantity } });
-    } else {
-      const product = await Product.findOneAndUpdate({ _id: item.product, $or: [{ trackInventory: false }, { allowBackorder: true }, { stock: { $gte: item.quantity } }] }, { $inc: { stock: -item.quantity, salesCount: item.quantity } });
-      if (!product) throw Object.assign(new Error(`Insufficient stock for ${item.sku}`), { status: 409 });
+
+  // Stripe/PayPal are the source of truth for captured money. Persist that
+  // fact first so a stock-side effect can never leave a genuinely paid order
+  // stuck at payment_processing in MongoDB.
+  if (order.paymentStatus !== "paid") {
+    order.paymentStatus = "paid";
+    order.status = "paid";
+    order.timeline.push({ status: "paid", note: "Payment verified", actor });
+    await order.save();
+  }
+
+  if (order.user) {
+    await Cart.updateOne(
+      { user: order.user },
+      { $set: { items: [], couponCode: "" } }
+    );
+  }
+
+  // Inventory adjustment is secondary to payment persistence. Keep the
+  // existing stock guards, but record any inventory problem instead of
+  // rolling the paid order back to a misleading processing state.
+  if (!order.inventoryAdjustedAt && !order.inventoryAdjustmentError) {
+    try {
+      for (const item of order.items) {
+        if (item.variant) {
+          const variant = await ProductVariant.findOneAndUpdate(
+            {
+              _id: item.variant,
+              $or: [
+                { stock: { $gte: item.quantity } },
+                { stock: { $exists: false } },
+              ],
+            },
+            { $inc: { stock: -item.quantity } }
+          );
+
+          if (!variant) {
+            throw Object.assign(
+              new Error(`Insufficient stock for ${item.sku}`),
+              { status: 409 }
+            );
+          }
+
+          await Product.updateOne(
+            { _id: item.product },
+            { $inc: { salesCount: item.quantity } }
+          );
+        } else {
+          const product = await Product.findOneAndUpdate(
+            {
+              _id: item.product,
+              $or: [
+                { trackInventory: false },
+                { allowBackorder: true },
+                { stock: { $gte: item.quantity } },
+              ],
+            },
+            {
+              $inc: {
+                stock: -item.quantity,
+                salesCount: item.quantity,
+              },
+            }
+          );
+
+          if (!product) {
+            throw Object.assign(
+              new Error(`Insufficient stock for ${item.sku}`),
+              { status: 409 }
+            );
+          }
+        }
+      }
+
+      order.inventoryAdjustedAt = new Date();
+      order.inventoryAdjustmentError = "";
+      await order.save();
+    } catch (error) {
+      order.inventoryAdjustmentError = error?.message || "Inventory adjustment failed";
+      order.timeline.push({
+        status: "paid",
+        note: `Payment verified; inventory attention required: ${order.inventoryAdjustmentError}`,
+        actor,
+      });
+      await order.save();
+
+      console.error("[order:paid:inventory:error]", {
+        orderId: String(order._id),
+        orderNumber: order.orderNumber,
+        message: error?.message,
+      });
     }
   }
-  order.paymentStatus = "paid";
-  order.status = "paid";
-  order.timeline.push({ status: "paid", note: "Payment verified", actor });
-  await order.save();
-  if (order.user) await Cart.updateOne({ user: order.user }, { $set: { items: [], couponCode: "" } });
+
   return order;
 }

@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import { getAppUrl } from "@/lib/app-url";
 function configured() { return Boolean(process.env.ALIPAY_APP_ID && process.env.ALIPAY_PRIVATE_KEY && process.env.ALIPAY_GATEWAY_URL); }
 function sign(params) {
   const content = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== "").sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join("&");
@@ -12,7 +11,7 @@ export const alipayProvider = {
   configured,
   async create({ order }) {
     if (!configured()) throw Object.assign(new Error("Alipay merchant checkout is not configured"), { status: 503 });
-    const appUrl = getAppUrl();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const params = {
       app_id: process.env.ALIPAY_APP_ID,
       method: process.env.ALIPAY_METHOD || "alipay.trade.page.pay",

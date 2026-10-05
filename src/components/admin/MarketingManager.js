@@ -1021,7 +1021,11 @@ export default function MarketingManager() {
                             value: event.target.value,
                           }))
                         }
-
+                        inputProps={{
+                          min: 0,
+                          step: "0.01",
+                        }}
+                        fullWidth
                       />
 
                       <MuiInput
@@ -1218,7 +1222,11 @@ export default function MarketingManager() {
                         value: event.target.value,
                       }))
                     }
-
+                    inputProps={{
+                      min: 0,
+                      step: "0.01",
+                    }}
+                    fullWidth
                   />
 
                   <MuiInput
@@ -1231,7 +1239,11 @@ export default function MarketingManager() {
                         minSubtotal: event.target.value,
                       }))
                     }
-
+                    inputProps={{
+                      min: 0,
+                      step: "0.01",
+                    }}
+                    fullWidth
                   />
 
                   <MuiInput
@@ -1245,7 +1257,11 @@ export default function MarketingManager() {
                       }))
                     }
                     placeholder="Unlimited"
-
+                    inputProps={{
+                      min: 0,
+                      step: "0.01",
+                    }}
+                    fullWidth
                   />
 
                   <MuiInput
@@ -1259,7 +1275,10 @@ export default function MarketingManager() {
                       }))
                     }
                     placeholder="Unlimited"
-
+                    inputProps={{
+                      min: 1,
+                    }}
+                    fullWidth
                   />
 
                   <Box>
@@ -1308,7 +1327,10 @@ export default function MarketingManager() {
                         perUserLimit: event.target.value,
                       }))
                     }
-
+                    inputProps={{
+                      min: 1,
+                    }}
+                    fullWidth
                   />
                 </Box>
 

@@ -1,4 +1,3 @@
-import { getAppUrl } from "@/lib/app-url";
 const baseUrl = () => process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
 async function token() {
   const id = process.env.PAYPAL_CLIENT_ID;
@@ -19,7 +18,7 @@ export const paypalProvider = {
   id: "paypal",
   configured: () => Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
   async create({ order, payment }) {
-    const appUrl = getAppUrl();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const data = await paypalFetch("/v2/checkout/orders", { method: "POST", headers: { "PayPal-Request-Id": payment.idempotencyKey }, body: JSON.stringify({ intent: "CAPTURE", purchase_units: [{ reference_id: order.orderNumber, custom_id: String(order._id), amount: { currency_code: order.currency, value: order.total.toFixed(2) } }], payment_source: { paypal: { experience_context: { return_url: `${appUrl}/checkout/paypal-return?order=${order.orderNumber}`, cancel_url: `${appUrl}/checkout?cancelled=1&order=${order.orderNumber}`, user_action: "PAY_NOW" } } } }) });
     const approve = data.links?.find((link) => link.rel === "payer-action" || link.rel === "approve")?.href;
     return { providerPaymentId: data.id, action: "redirect", url: approve };

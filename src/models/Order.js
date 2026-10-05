@@ -31,6 +31,8 @@ const schema = new mongoose.Schema({
   estimatedDelivery: { type: Date, default: null },
   cancelledAt: { type: Date, default: null },
   deliveredAt: { type: Date, default: null },
+  inventoryAdjustedAt: { type: Date, default: null },
+  inventoryAdjustmentError: { type: String, default: "" },
   idempotencyKey: { type: String, default: null, unique: true, sparse: true }
 }, { timestamps: true });
 schema.index({ user: 1, createdAt: -1 });
